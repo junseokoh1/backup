@@ -174,7 +174,6 @@ public:
                 if((*m_ppParameter)[i]->GetIsTrainable()) UpdateParameter((*m_ppParameter)[i], (*m_aaVelocity)[i]);
             }
         }
-
         return TRUE;
     }
 
@@ -185,6 +184,8 @@ public:
     @return 성공 시 TRUE
     */
     int UpdateParameter(Operator<DTYPE> *pParameter) {
+
+
         Tensor<DTYPE> *trainable_data = pParameter->GetResult();
         Tensor<DTYPE> *gradient       = pParameter->GetGradient();
 
@@ -209,8 +210,19 @@ public:
     @return 성공 시 TURE
     */
     int UpdateParameter(Operator<DTYPE> *pParameter, Tensor<DTYPE> *pVelocity) {
+
+
         Tensor<DTYPE> *trainable_data = pParameter->GetResult();
         Tensor<DTYPE> *gradient       = pParameter->GetGradient();
+
+        #if __UPDATEPAR__
+        std::cout<<"parameter update"<<'\n';
+        #endif
+
+        #if __UPDATEPAR__
+          std::cout<<pParameter->GetName()<<"의 gradient값 : "<<gradient<<'\n';
+          std::cout<<"수정 전 weight값 : "<<trainable_data<<'\n';
+        #endif
 
         float learning_rate   = this->GetOptimizeDirection() * this->GetLearningRate();
         float weightDecayRate = this->GetWeightDecayRate();
@@ -221,6 +233,10 @@ public:
             (*pVelocity)[i]      = m_momentum * (*pVelocity)[i] + learning_rate * (*gradient)[i];
             (*trainable_data)[i] += ((*pVelocity)[i] + weightDecayRate * (*trainable_data)[i]);
         }
+
+        #if __UPDATEPAR__
+          std::cout<<"수정 후 weight값 : "<<trainable_data<<'\n';
+        #endif
 
         return TRUE;
     }

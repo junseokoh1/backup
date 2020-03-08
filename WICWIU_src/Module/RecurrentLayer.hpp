@@ -34,16 +34,52 @@ public:
         Operator<DTYPE> *out = pInput;
 
         //--------------------------------------------초기화 방법. 추후 필히 수정!!!!!!!!!!!
-        float xavier_i = 0.1;  //1/sqrt(inputsize);
-        float xavier_h = 0.1; //1/sqrt(hiddensize);
+        float xavier_i = 1/sqrt(inputsize);
+        float xavier_h = 1/sqrt(hiddensize);
 
 
         // float stddev = 0.1;
-        Tensorholder<DTYPE> *pWeight_x2h = new Tensorholder<DTYPE>(Tensor<DTYPE>::Random_normal(1, 1, 1, hiddensize, inputsize, 0.0, xavier_i), "RecurrentLayer_pWeight_x2h_" + pName);
-        Tensorholder<DTYPE> *pWeight_h2h = new Tensorholder<DTYPE>(Tensor<DTYPE>::Random_normal(1, 1, 1, hiddensize, hiddensize, 0.0, xavier_h), "RecurrentLayer_pWeight_h2h_" + pName);
-        Tensorholder<DTYPE> *pWeight_h2o = new Tensorholder<DTYPE>(Tensor<DTYPE>::Random_normal(1, 1, 1, outputsize, hiddensize, 0.0, xavier_h), "RecurrentLayer_pWeight_h2o_" + pName);
+        //std::cout<<"weight을 위한 tensorholder 생성"<<'\n'<<'\n';
+        Tensorholder<DTYPE> *pWeight_x2h = new Tensorholder<DTYPE>(Tensor<DTYPE>::Random_normal(1, 1, 1, hiddensize, inputsize, 0.0, 0.01), "RecurrentLayer_pWeight_x2h_" + pName);
+        Tensorholder<DTYPE> *pWeight_h2h = new Tensorholder<DTYPE>(Tensor<DTYPE>::Random_normal(1, 1, 1, hiddensize, hiddensize, 0.0, 0.01), "RecurrentLayer_pWeight_h2h_" + pName);
+        Tensorholder<DTYPE> *pWeight_h2o = new Tensorholder<DTYPE>(Tensor<DTYPE>::Random_normal(1, 1, 1, outputsize, hiddensize, 0.0, 0.01), "RecurrentLayer_pWeight_h2o_" + pName);
+        //std::cout<<"weight들의 주소값"<<pWeight_x2h <<'\n'<<pWeight_h2h<<'\n' <<pWeight_h2o <<'\n';
 
-        out = new Recurrent<DTYPE>(out, pWeight_x2h, pWeight_h2h, pWeight_h2o, "Recurrent" + pName);
+    //toyexample
+/*
+        (*(pWeight_x2h->GetResult()))[0] = -1;
+        (*(pWeight_x2h->GetResult()))[1] = 0.4;
+        (*(pWeight_x2h->GetResult()))[2] = 0.5;
+        (*(pWeight_x2h->GetResult()))[3] = 0.3;
+
+        (*(pWeight_h2h->GetResult()))[0] = 0.3;
+        (*(pWeight_h2h->GetResult()))[1] = 0.03;
+        (*(pWeight_h2h->GetResult()))[2] = 0.25;
+        (*(pWeight_h2h->GetResult()))[3] = 0.2;
+
+        (*(pWeight_h2o->GetResult()))[0] = -0.5;
+        (*(pWeight_h2o->GetResult()))[1] = -1.4;
+        (*(pWeight_h2o->GetResult()))[2] = 1.3;
+        (*(pWeight_h2o->GetResult()))[3] = 0.1;
+
+        std::cout << "\n================ pWeight_x2h ================\n" << pWeight_x2h->GetResult() << "\n";
+        std::cout << "\n================ pWeight_h2h ================\n" << pWeight_h2h->GetResult() << "\n";
+        std::cout << "\n================ pWeight_h2o ================\n" << pWeight_h2o->GetResult() << "\n";
+        */
+
+        //Tensorholder<DTYPE> *pWeight_x2h = new Tensorholder<DTYPE>(Tensor<DTYPE>::Constants(1, 1, 1, hiddensize, inputsize, 0.25f), pName + "pWeight_x2h_");
+        //Tensorholder<DTYPE> *pWeight_h2h = new Tensorholder<DTYPE>(Tensor<DTYPE>::Constants(1, 1, 1, hiddensize, hiddensize, 0.25f), pName + "pWeight_h2h_");
+        //Tensorholder<DTYPE> *pWeight_h2o = new Tensorholder<DTYPE>(Tensor<DTYPE>::Constants(1, 1, 1, outputsize, hiddensize, 0.25f), pName + "pWeight_h2o_");
+    //toyexample
+
+        //recurrent 내에 bias 추가 하는 거!
+        //Tensorholder<DTYPE> *rBias = new Tensorholder<DTYPE>(Tensor<DTYPE>::Constants(1, 1, 1, 1, hiddensize, 0.f), "RNN_Bias_" + pName);
+
+        //out = new Recurrentwithbias<DTYPE>(out, pWeight_x2h, pWeight_h2h, pWeight_h2o, rBias);
+
+
+        out = new Recurrent<DTYPE>(out, pWeight_x2h, pWeight_h2h, pWeight_h2o );//, "Recurrent" + pName);    //recurrent에 해당하는 opeator의 생성자보면 name설정을 안해줌
+
 
         if (use_bias) {
             Tensorholder<DTYPE> *pBias = new Tensorholder<DTYPE>(Tensor<DTYPE>::Constants(1, 1, 1, 1, outputsize, 0.f), "Add_Bias_" + pName);

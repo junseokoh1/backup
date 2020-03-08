@@ -329,6 +329,7 @@ template<typename DTYPE> int NeuralNetwork<DTYPE>::TrainOnCPU() {
 template<typename DTYPE> int NeuralNetwork<DTYPE>::TimeTrainOnCPU(int timesize) {
     // this->ResetOperatorResult();
     // this->ResetOperatorGradient();
+    //std::cout<<"TimeTrainOnCPU함수 호출"<<'\n';
     this->ResetResult();
     this->ResetGradient();
     this->ResetLossFunctionResult();
@@ -338,12 +339,15 @@ template<typename DTYPE> int NeuralNetwork<DTYPE>::TimeTrainOnCPU(int timesize) 
       this->ForwardPropagate(i);
       m_aLossFunction->ForwardPropagate(i);
     }
-    for(int j=timesize-1; j>=0; j++){
+    for(int j=timesize-1; j>=0; j--){
+      //std::cout<<"TimeTrain time :"<< j<< '\n';
       m_aLossFunction->BackPropagate(j);
       this->BackPropagate(j);
     }
 
     //time_size를 안 넣어주는 이유는 time별 gradient 처리를 해주었다고 가정
+    //std::cout<<"UpdateParameter함수 호출 전"<<'\n';
+    //현재는 parameter 개수가 0개여서 안되는듯
     m_aOptimizer->UpdateParameter();
 
     return TRUE;
@@ -442,6 +446,8 @@ template<typename DTYPE> int NeuralNetwork<DTYPE>::TestOnGPU() {
  * @return 신경망의 Top 1 Accuracy : 0. ~ 1.
  */
 template<typename DTYPE> float NeuralNetwork<DTYPE>::GetAccuracy(int numOfClass) {
+
+    //GetResultOperator Loss전에 값을 갖고옴
     Operator<DTYPE> *result = GetResultOperator();
     Operator<DTYPE> *label  = m_aLossFunction->GetLabel();
 
@@ -451,12 +457,19 @@ template<typename DTYPE> float NeuralNetwork<DTYPE>::GetAccuracy(int numOfClass)
     Tensor<DTYPE> *pred = result->GetResult();
     Tensor<DTYPE> *ans  = label->GetResult();
 
+    //GetMaxIndex를 해서 Loss전에 값을 값고와도 상관없음
+    //std::cout<<"GetAccuracy함수 호출"<<'\n';
+    //std::cout<<"model 계산값 : "<<pred<<'\n';
+    //std::cout<<"label : "<<ans<<'\n';
+
+
     float accuracy = 0.f;
 
     int pred_index = 0;
     int ans_index  = 0;
     // printf("\n\n");
 
+    //
     for (int ba = 0; ba < batchsize; ba++) {
         for (int ti = 0; ti < timesize; ti++) {
             pred_index = GetMaxIndex(pred, ba, ti, numOfClass);
@@ -612,11 +625,28 @@ template<typename DTYPE> float NeuralNetwork<DTYPE>::GetLoss() {
     int batchsize = m_aLossFunction->GetResult()->GetBatchSize();
     int timesize  = m_aLossFunction->GetResult()->GetTimeSize();
 
-    for (int ba = 0; ba < batchsize; ba++) {
-        for (int ti = 0; ti < timesize; ti++) {
-            avg_loss += (*m_aLossFunction)[ba] / batchsize / timesize;
+    //batch, timesize는 맞게 잘 들어감
+    //std::cout<<"GetLoss에서 batch, time size : "<<batchsize<<"  "<<timesize<<'\n';
+
+    //(*m_aLossFunction)[ba] []이 연산 그냥 tensor인 m_aResult에서 갖고오는거임
+    //loss값 출력
+    //loss값 잘 갖고옴!!!
+    #if __LOSS__
+    std::cout<<"GetLoss함수에서 갖고오는 loss값 "<<'\n'<<m_aLossFunction->GetResult()<<'\n';
+    #endif
+
+
+    for (int ti = 0; ti < timesize; ti++) {
+        for (int ba = 0; ba < batchsize; ba++) {
+            //std::cout<<"m_aLossFunction "<<ba<<" : "<<(*m_aLossFunction)[ba]<<'\n';
+            //avg_loss += (*m_aLossFunction)[ba] / batchsize / timesize;                                         //기존에 있던거!
+            avg_loss += (*m_aLossFunction)[batchsize*ba + ti] / batchsize / timesize;
+            //avg_loss += (*m_aLossFunction)[batchsize*ti + ba] / batchsize / timesize;                   //뭐가 맞는걸까...
+            //avg_loss += (*m_aLossFunction)[batchsize*ba + ti] ;/// batchsize / timesize;
         }
     }
+    //avg_loss = avg_loss / batchsize;
+    //avg_loss = avg_loss / timesize;
 
     return avg_loss;
 }

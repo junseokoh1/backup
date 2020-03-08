@@ -74,8 +74,13 @@ public:
             for (int ch = 0; ch < channelsize; ch++) {
                 for (int ro = 0; ro < rowsize; ro++) {
                     for (int co = 0; co < colsize; co++) {
+                        if(isnan((*input)[Index5D(resultTenShape, ti, ba, ch, ro, co)]) != 0)
+                          std::cout<<"입력값이 이미 nan임";
                         (*result)[Index5D(resultTenShape, ti, ba, ch, ro, co)]
                             = tanh((*input)[Index5D(resultTenShape, ti, ba, ch, ro, co)]);
+
+                        if(isnan((*result)[Index5D(resultTenShape, ti, ba, ch, ro, co)]) != 0)
+                          std::cout<<"출력에서 nan발생"<<(*input)[Index5D(resultTenShape, ti, ba, ch, ro, co)]<<'\n';//<<ti<<ba<<ch<<ro<<co<<'\n';
                     }
                 }
             }
@@ -104,6 +109,8 @@ public:
 
         Shape *resultTenShape = result->GetShape();
 
+        //std::cout<<"tanh back"<<'\n';
+
         int ti = pTime;
 
         for (int ba = 0; ba < batchsize; ba++) {
@@ -114,6 +121,7 @@ public:
                             += (1 - (*result)[Index5D(resultTenShape, ti, ba, ch, ro, co)])
                                * (1 + (*result)[Index5D(resultTenShape, ti, ba, ch, ro, co)])
                                * (*this_delta)[Index5D(resultTenShape, ti, ba, ch, ro, co)];
+                        //std::cout<<(*input_delta)[Index5D(resultTenShape, ti, ba, ch, ro, co)]<<'\n'<<(*result)[Index5D(resultTenShape, ti, ba, ch, ro, co)]<<'\n'<<(*this_delta)[Index5D(resultTenShape, ti, ba, ch, ro, co)]<<'\n';
                     }
                 }
             }

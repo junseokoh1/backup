@@ -297,6 +297,7 @@ public:
 
         int ti = pTime;
 
+        //std::cout<<"<MatMul forward 계산>"<<'\n';
         for (int ba = 0; ba < batchsize; ba++) {
             for (int ch = 0; ch < channelsize; ch++) {
                 for (int ro = 0; ro < rowsize; ro++) {
@@ -305,6 +306,7 @@ public:
                             (*result)[Index5D(resultTenShape, ti, ba, ch, ro, co)]
                                 += (*weight)[Index5D(weightTenShape, 0, 0, 0, co, hid)]
                                    * (*input)[Index5D(inputTenShape, ti, ba, ch, ro, hid)];
+                            //std::cout<<(*result)[Index5D(resultTenShape, ti, ba, ch, ro, co)]<<" = "<<(*weight)[Index5D(weightTenShape, 0, 0, 0, co, hid)]<<" * "<<(*input)[Index5D(inputTenShape, ti, ba, ch, ro, hid)]<<'\n';
                         }
                     }
                 }
@@ -346,6 +348,9 @@ public:
         int result_index = 0;
 
         int ti = pTime;
+        #if __RNNDEBUG__
+        std::cout<<this->GetName()<<"의 MatMul gradient 계산 time : "<<pTime<<'\n';
+        #endif
 
         for (int ba = 0; ba < batchsize; ba++) {
             for (int ch = 0; ch < channelsize; ch++) {
@@ -358,11 +363,18 @@ public:
 
                             (*input_delta)[input_index]      += (*weight)[weight_index] * (*this_delta)[result_index];
                             (*weight_gradient)[weight_index] += (*input)[input_index] * (*this_delta)[result_index];
+
+                            #if __RNNDEBUG__
+                            std::cout<<"index "<<ba<<ch<<ro<<co<<hid<<'\n';
+                            std::cout<<(*input)[input_index]<<" * "<<(*this_delta)[result_index]<<'\n';
+                            #endif
                         }
                     }
                 }
             }
         }
+
+        //std::cout<<this->GetName()<<"의 MatMul gradient값 time:"<<pTime<<weight_gradient<<'\n';
 
 
         return TRUE;

@@ -2,7 +2,7 @@
 
 CFLAGS = -O2 -std=c++11
 #ENABLE_CUDNN = -D__CUDNN__
-DFLAGS = -g -D__DEBUG___
+#DFLAGS = -g -D__DEBUG___
 
 LFLAGS = -lcudart -lcudnn -lpthread -ljpeg -lturbojpeg
 
@@ -39,14 +39,14 @@ all: main
 .cpp.o:
 	$(CC) $(CFLAGS) $(DFLAGS) $(ENABLE_CUDNN) $(INCLUDE_PATH) $(LIB_PATH) -c $< -o $@
 
-main: RecurrentOperatorTest.o $(WICWIU_LIB)
-	$(NVCC) $(CFLAGS) $(ENABLE_CUDNN) $(DFLAGS) $(LFLAGS) $(INCLUDE_PATH) $(LIB_PATH) -o $@ $(WICWIU_LIB) RecurrentOperatorTest.o
+#main: RecurrentOperatorTest.o $(WICWIU_LIB)
+#	$(NVCC) $(CFLAGS) $(ENABLE_CUDNN) $(DFLAGS) $(LFLAGS) $(INCLUDE_PATH) $(LIB_PATH) -o $@ $(WICWIU_LIB) RecurrentOperatorTest.o
 
 #main: ConcatenateOperatorTest.o $(WICWIU_LIB)
 #	$(NVCC) $(CFLAGS) $(ENABLE_CUDNN) $(DFLAGS) $(LFLAGS) $(INCLUDE_PATH) $(LIB_PATH) -o $@ $(WICWIU_LIB) ConcatenateOperatorTest.o
 
-#main: MatMulOperatorTest.o $(WICWIU_LIB)
-#	$(NVCC) $(CFLAGS) $(ENABLE_CUDNN) $(DFLAGS) $(LFLAGS) $(INCLUDE_PATH) $(LIB_PATH) -o $@ $(WICWIU_LIB) MatMulOperatorTest.o
+main: MatMulOperatorTest.o $(WICWIU_LIB)
+	$(NVCC) $(CFLAGS) $(ENABLE_CUDNN) $(DFLAGS) $(LFLAGS) $(INCLUDE_PATH) $(LIB_PATH) -o $@ $(WICWIU_LIB) MatMulOperatorTest.o
 
 $(WICWIU_LIB): $(WICWIU_SRC)
 	make -C ../..

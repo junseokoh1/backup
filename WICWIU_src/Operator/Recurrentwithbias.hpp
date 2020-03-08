@@ -1,5 +1,5 @@
-#ifndef RECURRENT_H_
-#define RECURRENT_H_    value
+#ifndef RECURRENTWITHBIAS_H_
+#define RECURRENTWITHBIAS_H_    value
 
 #include "../Operator.hpp"
 #include "MatMul.hpp"
@@ -7,7 +7,7 @@
 #include "Tanh.hpp"
 #include "Tensorholder.hpp"
 
-template<typename DTYPE> class Recurrent : public Operator<DTYPE>{
+template<typename DTYPE> class Recurrentwithbias : public Operator<DTYPE>{
 private:
     Operator<DTYPE> *m_aInput2Hidden;
     Operator<DTYPE> *m_aHidden2Hidden;
@@ -16,27 +16,29 @@ private:
     Operator<DTYPE> *m_aPostActivate;
     Operator<DTYPE> *m_aHidden2Output;
 
+    Operator<DTYPE> *m_aPrevActivateBias;
+
 public:
   //Recurrent는 지금 생성자에 인자가 너무 많아서 Operator의 생성자를 호출할 때 숫자를 넣어줘야됨 그래서 4를 넣어준거
-    Recurrent(Operator<DTYPE> *pInput, Operator<DTYPE> *pWeightXH, Operator<DTYPE> *pWeightHH, Operator<DTYPE> *pWeightHY) : Operator<DTYPE>(4, pInput, pWeightXH, pWeightHH, pWeightHY) {
+    Recurrentwithbias(Operator<DTYPE> *pInput, Operator<DTYPE> *pWeightXH, Operator<DTYPE> *pWeightHH, Operator<DTYPE> *pWeightHY, Operator<DTYPE> *rBias) : Operator<DTYPE>(5, pInput, pWeightXH, pWeightHH, pWeightHY, rBias) {
         #if __DEBUG__
         std::cout << "Recurrent::Recurrent(Operator<DTYPE> *)" << '\n';
         #endif  // __DEBUG__
         //std::cout <<"Recurrent pName없는 생성자 호출" << '\n';
-        this->Alloc(pInput, pWeightXH, pWeightHH, pWeightHY);
+        this->Alloc(pInput, pWeightXH, pWeightHH, pWeightHY, rBias);
     }
 
     //pName때문에 Operator 생성자 호출이 안되는듯!!!!
     //숫자 4로해도 되는건가?
-    Recurrent(Operator<DTYPE> *pInput, Operator<DTYPE> *pWeightXH, Operator<DTYPE> *pWeightHH, Operator<DTYPE> *pWeightHY, std::string pName) : Operator<DTYPE>(4, pInput, pWeightXH, pWeightHH, pWeightHY, pName) {
+    Recurrentwithbias(Operator<DTYPE> *pInput, Operator<DTYPE> *pWeightXH, Operator<DTYPE> *pWeightHH, Operator<DTYPE> *pWeightHY, Operator<DTYPE> *rBias, std::string pName) : Operator<DTYPE>(5, pInput, pWeightXH, pWeightHH, pWeightHY, rBias, pName) {
         #if __DEBUG__
         std::cout << "Recurrent::Recurrent(Operator<DTYPE> *)" << '\n';
         #endif  // __DEBUG__
         //std::cout <<"Recurrent::pName있는 생성자 호출" << '\n';
-        this->Alloc(pInput, pWeightXH, pWeightHH, pWeightHY);
+        this->Alloc(pInput, pWeightXH, pWeightHH, pWeightHY, rBias);
     }
 
-    ~Recurrent() {
+    ~Recurrentwithbias() {
         #if __DEBUG__
         std::cout << "Recurrent::~Recurrent()" << '\n';
         #endif  // __DEBUG__
@@ -44,7 +46,7 @@ public:
         Delete();
     }
 
-    int Alloc(Operator<DTYPE> *pInput, Operator<DTYPE> *pWeightXH, Operator<DTYPE> *pWeightHH, Operator<DTYPE> *pWeightHY) {
+    int Alloc(Operator<DTYPE> *pInput, Operator<DTYPE> *pWeightXH, Operator<DTYPE> *pWeightHH, Operator<DTYPE> *pWeightHY, Operator<DTYPE> *rBias) {
         #if __DEBUG__
         std::cout << "Recurrent::Alloc(Operator<DTYPE> *, Operator<DTYPE> *)" << '\n';
         #endif  // __DEBUG__
@@ -60,7 +62,10 @@ public:
         m_aTempHidden    = new Tensorholder<DTYPE>(Tensor<DTYPE>::Zeros(hidTimeSize, hidBatchSize, 1, 1, hidColSize), "tempHidden");
         m_aHidden2Hidden = new MatMul<DTYPE>(pWeightHH, m_aTempHidden, "rnn_matmul_hh");
         m_aPrevActivate  = new Addall<DTYPE>(m_aInput2Hidden, m_aHidden2Hidden, "rnn_addall");
-        m_aPostActivate  = new Tanh<DTYPE>(m_aPrevActivate, "rnn_tanh");
+
+        m_aPrevActivateBias = new AddColWise<DTYPE>(m_aPrevActivate, rBias, "net_with_bias_");
+
+        m_aPostActivate  = new Tanh<DTYPE>(m_aPrevActivateBias, "rnn_tanh");
         m_aHidden2Output = new MatMul<DTYPE>(pWeightHY, m_aPostActivate, "rnn_matmul_ho");
 
         //pWeightXH->AddOutputEdgeRNN(this, m_aInput2Hidden);
@@ -68,6 +73,7 @@ public:
         //pWeightHY->AddOutputEdgeRNN(this, m_aHidden2Output);
 
         //하나씩 더 연결되어 있는게 문제였으니깐 Pop만 해보자!!! 즉 matmul에 해당하는 연결만 pop 해보자
+        rBias->GetOutputContainer()->Pop(m_aPrevActivateBias);
         pWeightXH->GetOutputContainer()->Pop(m_aInput2Hidden);
         pWeightHH->GetOutputContainer()->Pop(m_aHidden2Hidden);
         pWeightHY->GetOutputContainer()->Pop(m_aHidden2Output);
@@ -93,28 +99,6 @@ public:
         return TRUE;
     }
 
-#if __CUDNN__
-    void InitializeAttributeForGPU() {
-        m_aInput2Hidden->SetDeviceGPU();
-        m_aInput2Hidden->SetCudnnHandle(this->GetCudnnHandle());
-
-        m_aHidden2Hidden->SetDeviceGPU();
-        m_aHidden2Hidden->SetCudnnHandle(this->GetCudnnHandle());
-
-        m_aTempHidden->SetDeviceGPU();
-        m_aTempHidden->SetCudnnHandle(this->GetCudnnHandle());
-
-        m_aPrevActivate->SetDeviceGPU();
-        m_aPrevActivate->SetCudnnHandle(this->GetCudnnHandle());
-
-        m_aPostActivate->SetDeviceGPU();
-        m_aPostActivate->SetCudnnHandle(this->GetCudnnHandle());
-
-        m_aHidden2Output->SetDeviceGPU();
-        m_aHidden2Output->SetCudnnHandle(this->GetCudnnHandle());
-    }
-
-#endif  // if __CUDNN__
 
     void Delete() {}
 
@@ -127,8 +111,6 @@ public:
         #if __RNNDEBUG__
           std::cout<<"============================================================recurrent의 forward 호출: "<<pTime<<"=========================================================================="<<'\n';
         #endif
-
-        //std::cout<<"입력값 time : "<<pTime<<'\n'<<m_aInput2Hidden->GetInput()[1]->GetResult();
 
         m_aInput2Hidden->ForwardPropagate(pTime);
         #if __RNNDEBUG__
@@ -156,6 +138,8 @@ public:
         #if __RNNDEBUG__
           std::cout <<"m_aPrevActivate 계산 결과 값 : "<<'\n'<<m_aPrevActivate->GetResult() << '\n';
         #endif
+
+        m_aPrevActivateBias->ForwardPropagate(pTime);
 
         m_aPostActivate->ForwardPropagate(pTime);
         #if __RNNDEBUG__
@@ -242,6 +226,8 @@ public:
         #endif
         m_aPostActivate->BackPropagate(pTime);
 
+        m_aPrevActivateBias->BackPropagate(pTime);
+
         #if __RNNDEBUG__
         std::cout <<"m_aPrevActivate의 Gradient 값 time : "<<pTime<<'\n'<<m_aPrevActivate->GetGradient() << '\n';
         #endif
@@ -255,116 +241,8 @@ public:
         return TRUE;
     }
 
-#if __CUDNN__
-    int ForwardPropagateOnGPU(int pTime = 0) {
-        int alpha = 1.f;
-        int beta  = 0.f;
-
-        cudnnTensorDescriptor_t desc = NULL;
-
-        m_aInput2Hidden->ForwardPropagateOnGPU(pTime);
-
-        if (pTime != 0) {
-            Tensor<DTYPE> *prevHidden = m_aHidden2Hidden->GetResult();
-            Tensor<DTYPE> *tempHidden = m_aTempHidden->GetResult();
-
-            DTYPE *pDevPrevHidden = prevHidden->GetDeviceData(pTime - 1);
-            DTYPE *pDevTempHidden = tempHidden->GetDeviceData(pTime);
-
-            desc = prevHidden->GetDescriptor();
-
-            checkCUDNN(cudnnAddTensor(this->GetCudnnHandle(),
-                                      &alpha, desc, pDevPrevHidden,
-                                      &alpha, desc, pDevTempHidden));
-
-            m_aHidden2Hidden->ForwardPropagateOnGPU(pTime);
-        }
-
-        m_aPrevActivate->ForwardPropagateOnGPU(pTime);
-
-        m_aPostActivate->ForwardPropagateOnGPU(pTime);
-
-        m_aHidden2Output->ForwardPropagateOnGPU(pTime);
-
-        Tensor<DTYPE> *_result = m_aHidden2Output->GetResult();
-        Tensor<DTYPE> *result  = this->GetResult();
-
-        int colSize        = result->GetColSize();
-        Shape *ResultShape = result->GetShape();
-
-        for (int i = 0; i < colSize; i++) {
-            (*result)[Index5D(ResultShape, pTime, 0, 0, 0, i)] = (*_result)[Index5D(ResultShape, pTime, 0, 0, 0, i)];
-        }
-
-        // DTYPE *_pDevResult = _result->GetDeviceData(pTime);
-        // DTYPE *pDevResult  = result->GetDeviceData(pTime);
-
-        // desc = _result->GetDescriptor();
-        //
-        // checkCUDNN(cudnnAddTensor(this->GetCudnnHandle(),
-        // &alpha, desc, _pDevResult,
-        // &alpha, desc, pDevResult));
 
 
-        return TRUE;
-    }
-
-    int BackPropagateOnGPU(int pTime = 0) {
-        int alpha = 1.f;
-        int beta  = 0.f;
-
-        cudnnTensorDescriptor_t desc = NULL;
-
-        Tensor<DTYPE> *_grad = m_aHidden2Output->GetGradient();
-        Tensor<DTYPE> *grad  = this->GetGradient();
-
-        DTYPE *_pDevGrad = _grad->GetDeviceData(pTime);
-        DTYPE *pDevGrad  = grad->GetDeviceData(pTime);
-
-        int colSize        = grad->GetColSize();
-        Shape *ResultShape = grad->GetShape();
-
-        for (int i = 0; i < colSize; i++) {
-            (*_grad)[Index5D(ResultShape, pTime, 0, 0, 0, i)] = (*grad)[Index5D(ResultShape, pTime, 0, 0, 0, i)];
-        }
-
-        // std::cout << _grad << '\n';
-
-        // desc = _grad->GetDescriptor();
-        //
-        // checkCUDNN(cudnnAddTensor(this->GetCudnnHandle(),
-        //                           &alpha, desc, pDevGrad,
-        //                           &beta, desc, _pDevGrad));
-
-        m_aHidden2Output->BackPropagateOnGPU(pTime);
-
-        m_aPostActivate->BackPropagateOnGPU(pTime);
-
-        m_aPrevActivate->BackPropagateOnGPU(pTime);
-
-        if (pTime != 0) {
-            m_aHidden2Hidden->BackPropagateOnGPU(pTime);
-
-            Tensor<DTYPE> *tempHiddenGrad = m_aTempHidden->GetGradient();
-            Tensor<DTYPE> *prevHiddenGrad = m_aHidden2Hidden->GetGradient();
-
-            DTYPE *pDevTempHiddenGrad = tempHiddenGrad->GetDeviceData(pTime);
-            DTYPE *pDevPrevHiddenGrad = prevHiddenGrad->GetDeviceData(pTime - 1);
-
-            desc = tempHiddenGrad->GetDescriptor();
-
-            checkCUDNN(cudnnAddTensor(this->GetCudnnHandle(),
-                                      &alpha, desc, pDevTempHiddenGrad,
-                                      &alpha, desc, pDevPrevHiddenGrad));
-        }
-
-        m_aInput2Hidden->BackPropagateOnGPU(pTime);
-
-        // delete, data loader, reset algo, 등 구하기
-
-        return TRUE;
-    }
-    #endif  // if __CUDNN__
 
     int ResetResult() {
         #if __RESET__
@@ -376,6 +254,7 @@ public:
         m_aPrevActivate->ResetResult();
         m_aPostActivate->ResetResult();
         m_aHidden2Output->ResetResult();
+        m_aPrevActivateBias->ResetResult();
     }
 
     int ResetGradient() {
@@ -388,7 +267,9 @@ public:
         m_aPrevActivate->ResetGradient();
         m_aPostActivate->ResetGradient();
         m_aHidden2Output->ResetGradient();
+        m_aPrevActivateBias->ResetGradient();
     }
+
 
 };
 

@@ -32,5 +32,6 @@
 #include "Operator/ReconstructionError.hpp"
 
 #include "Operator/Recurrent.hpp"
+#include "Operator/Recurrentwithbias.hpp"
 
 #endif  // __OPERATER_UTIL_H__
